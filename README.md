@@ -1,24 +1,25 @@
 # Endless Runner - Technical Assessment
 
 **Studio Target:** Nukebox Studios  
-**Engine Version:** Unity 6000.3.12f1 (Unity 6)  
-**Target Platform:** Mobile (Android / iOS friendly)  
+**Engine Version:** Unity 6 (6000.3.12f1)  
+**Target Platform:** Android & iOS (Mobile)
 
 ---
 
-## 1. Executive Architecture Overview
+# 1. Executive Architecture Overview
 
-This project implements the core mechanics of a production-quality Endless Runner mobile game designed for scalability, zero runtime Garbage Collection (GC) allocations, and extreme modularity.
+This project implements the core mechanics of a modular Endless Runner game using Unity 6. The architecture emphasizes maintainability, scalability, event-driven communication, and object reuse through pooling.
 
-### Architectural Highlights
-* **Service Locator Architecture:** System managers (`SaveManager`, `AudioManager`, `PoolManager`) are registered cleanly via `ServiceLocator` and accessed through C# interfaces (`ISaveService`, `IAudioService`), avoiding monolithic Singletons or God classes.
-* **Type-Safe Generic EventBus:** Inter-system messaging utilizes a static generic `EventBus<T>` where events are immutable C# `struct` payloads. This guarantees **zero runtime GC allocations** during gameplay event dispatches.
-* **Data-Driven Configuration:** All gameplay parameters, player speed, gravity multipliers, audio configurations, and spawn parameters are driven by `ScriptableObject` assets.
-* **Generic Object Pooling:** Dynamic objects (track segments, obstacles, coins) are pre-warmed and recycled using a generic `PoolManager` and `IPoolable` lifecycle interface, completely eliminating dynamic `Instantiate()` or `Destroy()` calls during active runs.
+## Architectural Highlights
+
+- **Service Locator Architecture:** Core services (`SaveManager`, `AudioManager`, `PoolManager`) are registered through a centralized `ServiceLocator` and accessed via interfaces, promoting loose coupling.
+- **Type-Safe Generic EventBus:** Gameplay systems communicate using a generic `EventBus<T>` with immutable event structs, reducing dependencies between systems.
+- **Data-Driven Configuration:** Gameplay values such as player movement, spawning, audio, and scoring are configured using `ScriptableObject` assets.
+- **Object Pooling:** Track segments, obstacles, and collectibles are recycled through a generic pooling system to reduce runtime object creation and destruction.
 
 ---
 
-## 2. Project Folder Structure
+# 2. Project Folder Structure
 
 ```text
 Assets/
@@ -39,62 +40,106 @@ Assets/
 │   ├── Bootstrapper.unity
 │   └── Gameplay.unity
 ├── Scripts/
-│   ├── Architecture/       # ServiceLocator & Interface abstractions
-│   ├── Audio/              # AudioManager implementation
-│   ├── Core/               # Bootstrapper, GameManager, InputManager
-│   ├── Events/             # Generic EventBus & Event Structs
-│   ├── Gameplay/           # PlayerController, TrackSpawner, Collision
-│   ├── Interfaces/         # Service & Poolable contracts
-│   ├── Pooling/            # GameObjectPool & PoolManager
-│   ├── Save/               # JSON Save System & Persistence Data Models
-│   ├── Score/              # Distance & Coin score tracker
-│   ├── ScriptableObjects/  # Player, Game, Audio, and Spawn Config assets
-│   └── UI/                 # UIManager, HUDView, GameOverView
-└── Tests/                  # EditMode and PlayMode Unit Tests
+│   ├── Architecture/
+│   ├── Audio/
+│   ├── Core/
+│   ├── Events/
+│   ├── Gameplay/
+│   ├── Interfaces/
+│   ├── Pooling/
+│   ├── Save/
+│   ├── Score/
+│   ├── ScriptableObjects/
+│   └── UI/
+└── Tests/
+    └── EditMode/
 ```
 
 ---
 
-## 3. How to Run & Controls
+# 3. How to Run
 
-### Build & Run
-1. Open the project in Unity 6000.3.12f1.
-2. Open `Assets/Scenes/Bootstrapper.unity`.
-3. Press Play in the Unity Editor.
+## Build & Run
 
-### Player Controls
+1. Open the project in **Unity 6 (6000.3.12f1)**.
+2. Open **Assets/Scenes/Bootstrapper.unity**.
+3. Press **Play**.
 
-**Mobile / Touch:**
-- Swipe Up: Jump
-- Swipe Left / Right: Switch Lanes
+## Controls
 
-**Desktop Debug Controls:**
-- W / Up Arrow: Jump
-- A / D or Left / Right Arrows: Switch Lanes
+### Mobile
 
----
+- Swipe Up — Jump
 
-## 4. Mobile Performance Optimizations
+### Desktop
 
-- **Garbage Collection Minimization:** Struct-based events, stack-allocated object pools, and string-free hash lookups (`GetInstanceID()`) ensure zero GC spikes during running loops.
-- **Rendering & Physics:** Hard shadows, low draw-call canvas overlays, and physics trigger masks (`LayerMask`) minimize CPU/GPU bandwidth on mobile chipsets.
-- **Frame Rate Locking:** Target framerate forced to 60 FPS with VSync disabled in `Bootstrapper.cs` for mobile battery efficiency.
+- W or Up Arrow — Jump
+
+> **Note:** Lane switching input is planned but is not fully connected in the current implementation.
 
 ---
 
-## 5. AI Usage Disclosure
+# 4. Performance Optimizations
 
-- **Tools Used:** Claude 3.5 Sonnet / ChatGPT / Gemini.
-- **AI Assistance:** Assisted in generating initial code boilerplates, writing Unit Test scenarios, and designing Mermaid architecture diagrams.
-- **Manual Implementation & Verification:** Architecture design, interface segregation, EventBus design, mobile performance profiling, scriptable object tuning, and inspector configurations were authored and reviewed manually.
+- Event-driven architecture using lightweight event structs.
+- Object pooling to reuse gameplay objects and reduce runtime allocations.
+- ScriptableObject-based configuration to separate data from logic.
+- Target frame rate locked to **60 FPS** with VSync disabled inside `Bootstrapper.cs` for mobile optimization.
 
 ---
 
-## 6. Known Issues & Future Improvements
+# 5. AI Usage Disclosure
 
-**Known Issues:** None. Project compiles cleanly with zero warnings or errors on Unity 6.
+### Tools Used
 
-**Future Improvements:**
-- Integrate VContainer or Zenject for explicit Dependency Injection.
-- Integrate Addressables for remote downloading of level segments and audio banks.
-- Add visual particle FX pooling upon coin collection.
+- ChatGPT
+- Gemini
+
+### AI Assistance
+
+AI tools were used to:
+
+- Generate initial code structure and boilerplate.
+- Suggest architecture and design patterns.
+- Assist with documentation.
+- Provide sample unit tests.
+- Review implementation approaches.
+
+### Manual Work
+
+The following work was completed manually:
+
+- Integrating all scripts into the Unity project.
+- Organizing the project architecture.
+- Resolving Unity 6 compatibility issues.
+- Replacing the original pooling implementation with a Unity 6-compatible version.
+- Verifying compilation and fixing project errors.
+- Configuring project structure and preparing the repository for submission.
+
+---
+
+# 6. Unit Tests
+
+EditMode unit tests are included for:
+
+- SaveManager
+- EventBus
+
+These verify save/load functionality and event publishing/subscribing behavior.
+
+---
+
+# 7. Future Improvements
+
+- Complete lane switching input implementation.
+- Add visual effects and particle pooling.
+- Integrate Addressables for content management.
+- Replace Service Locator with a dependency injection framework such as Zenject or VContainer.
+- Add PlayMode tests for gameplay systems.
+- Improve UI polish and gameplay balancing.
+
+---
+
+# 8. Notes
+
+The project compiles successfully under **Unity 6** and is structured with modular gameplay systems to support future expansion and maintenance.
