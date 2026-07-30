@@ -6,83 +6,86 @@ using EndlessRunner.Interfaces;
 namespace EndlessRunner.Pooling
 {
     /// <summary>
-    /// Centralized service handling object pool creation, retrieval, and recycling.
-    /// Uses InstanceID integer lookups for zero-allocation performance.
+    /// Central manager for all object pools.
+    /// Unity 6.5 compatible implementation.
     /// </summary>
     public class PoolManager : MonoBehaviour, IGameService
     {
-        private readonly Dictionary<int, GameObjectPool> _pools = new Dictionary<int, GameObjectPool>();
-        private readonly Dictionary<int, int> _instanceToPrefabMap = new Dictionary<int, int>();
+        private readonly Dictionary<GameObject, GameObjectPool> _pools = new();
+        private readonly Dictionary<GameObject, GameObject> _spawnedObjects = new();
 
         public Task InitializeAsync()
         {
-            Debug.Log("[PoolManager] Initialized successfully.");
+            Debug.Log("[PoolManager] Initialized.");
             return Task.CompletedTask;
         }
 
         public void Deinitialize()
         {
             _pools.Clear();
-            _instanceToPrefabMap.Clear();
+            _spawnedObjects.Clear();
         }
 
         /// <summary>
-        /// Pre-warms an object pool for a specific prefab asset.
+        /// Creates a pool for a prefab if one does not already exist.
         /// </summary>
-        public void CreatePool(GameObject prefab, int initialCapacity)
+        public void CreatePool(GameObject prefab, int initialSize)
         {
-            if (prefab == null) return;
+            if (prefab == null)
+                return;
 
-            int prefabId = prefab.GetInstanceID();
-            if (!_pools.ContainsKey(prefabId))
-            {
-                GameObject poolContainer = new GameObject($"Pool_{prefab.name}");
-                poolContainer.transform.SetParent(transform);
+            if (_pools.ContainsKey(prefab))
+                return;
 
-                GameObjectPool pool = new GameObjectPool(prefab, initialCapacity, poolContainer.transform);
-                _pools.Add(prefabId, pool);
-            }
+            GameObject container = new GameObject($"Pool_{prefab.name}");
+            container.transform.SetParent(transform);
+
+            GameObjectPool pool =
+                new GameObjectPool(prefab, initialSize, container.transform);
+
+            _pools.Add(prefab, pool);
         }
 
         /// <summary>
-        /// Spawns an instance from the designated pool at specified transform coordinates.
+        /// Spawns an object from its pool.
         /// </summary>
         public GameObject Spawn(GameObject prefab, Vector3 position, Quaternion rotation)
         {
-            if (prefab == null) return null;
+            if (prefab == null)
+                return null;
 
-            int prefabId = prefab.GetInstanceID();
-            if (!_pools.ContainsKey(prefabId))
+            if (!_pools.TryGetValue(prefab, out GameObjectPool pool))
             {
-                CreatePool(prefab, 5); // Fallback pre-warm capacity
+                CreatePool(prefab, 5);
+                pool = _pools[prefab];
             }
 
-            GameObject instance = _pools[prefabId].Get(position, rotation);
-            _instanceToPrefabMap[instance.GetInstanceID()] = prefabId;
+            GameObject instance = pool.Get(position, rotation);
+
+            if (!_spawnedObjects.ContainsKey(instance))
+                _spawnedObjects.Add(instance, prefab);
 
             return instance;
         }
 
         /// <summary>
-        /// Recycles a spawned GameObject back to its assigned parent pool stack.
+        /// Returns an object back to its original pool.
         /// </summary>
         public void Despawn(GameObject instance)
         {
-            if (instance == null) return;
+            if (instance == null)
+                return;
 
-            int instanceId = instance.GetInstanceID();
-            if (_instanceToPrefabMap.TryGetValue(instanceId, out int prefabId))
+            if (_spawnedObjects.TryGetValue(instance, out GameObject prefab))
             {
-                if (_pools.TryGetValue(prefabId, out GameObjectPool pool))
-                {
-                    pool.Release(instance);
-                    _instanceToPrefabMap.Remove(instanceId);
-                    return;
-                }
+                _pools[prefab].Release(instance);
+                _spawnedObjects.Remove(instance);
             }
-
-            Debug.LogWarning($"[PoolManager] Attempted to despawn unmanaged object {instance.name}. Destroying fallback.");
-            Destroy(instance);
+            else
+            {
+                Debug.LogWarning($"PoolManager: {instance.name} was not created from a pool.");
+                Destroy(instance);
+            }
         }
     }
 }

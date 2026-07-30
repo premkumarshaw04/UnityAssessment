@@ -1,80 +1,54 @@
 using System.Collections.Generic;
 using UnityEngine;
-using EndlessRunner.Interfaces;
 
 namespace EndlessRunner.Pooling
 {
     /// <summary>
-    /// Generic object pool managing active instances of a specific prefab asset.
+    /// Simple GameObject pool compatible with Unity 6.5.
     /// </summary>
     public class GameObjectPool
     {
         private readonly GameObject _prefab;
-        private readonly Transform _parentContainer;
-        private readonly Stack<GameObject> _poolStack;
+        private readonly Transform _parent;
+        private readonly Queue<GameObject> _pool = new();
 
-        public GameObject Prefab => _prefab;
-
-        public GameObjectPool(GameObject prefab, int initialCapacity, Transform parentContainer)
+        public GameObjectPool(GameObject prefab, int initialSize, Transform parent)
         {
             _prefab = prefab;
-            _parentContainer = parentContainer;
-            _poolStack = new Stack<GameObject>(initialCapacity);
+            _parent = parent;
 
-            Prewarm(initialCapacity);
-        }
-
-        private void Prewarm(int count)
-        {
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < initialSize; i++)
             {
-                GameObject instance = Object.Instantiate(_prefab, _parentContainer);
-                instance.SetActive(false);
-                _poolStack.Push(instance);
+                GameObject obj = Object.Instantiate(_prefab, _parent);
+                obj.SetActive(false);
+                _pool.Enqueue(obj);
             }
         }
 
-        /// <summary>
-        /// Gets an inactive object from the pool stack or expands dynamically if empty.
-        /// </summary>
         public GameObject Get(Vector3 position, Quaternion rotation)
         {
-            GameObject instance;
+            GameObject obj;
 
-            if (_poolStack.Count > 0)
+            if (_pool.Count > 0)
             {
-                instance = _poolStack.Pop();
+                obj = _pool.Dequeue();
             }
             else
             {
-                Debug.LogWarning($"[GameObjectPool] Pool for {_prefab.name} exhausted. Expanding pool dynamically.");
-                instance = Object.Instantiate(_prefab, _parentContainer);
+                obj = Object.Instantiate(_prefab, _parent);
             }
 
-            instance.transform.SetPositionAndRotation(position, rotation);
-            instance.SetActive(true);
+            obj.transform.SetPositionAndRotation(position, rotation);
+            obj.SetActive(true);
 
-            if (instance.TryGetComponent(out IPoolable poolable))
-            {
-                poolable.OnSpawnFromPool();
-            }
-
-            return instance;
+            return obj;
         }
 
-        /// <summary>
-        /// Returns an active instance back to the pool stack.
-        /// </summary>
-        public void Release(GameObject instance)
+        public void Release(GameObject obj)
         {
-            if (instance.TryGetComponent(out IPoolable poolable))
-            {
-                poolable.OnReturnToPool();
-            }
-
-            instance.SetActive(false);
-            instance.transform.SetParent(_parentContainer);
-            _poolStack.Push(instance);
+            obj.SetActive(false);
+            obj.transform.SetParent(_parent);
+            _pool.Enqueue(obj);
         }
     }
 }
